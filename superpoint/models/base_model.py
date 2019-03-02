@@ -399,7 +399,7 @@ class BaseModel(metaclass=ABCMeta):
     def save(self, checkpoint_path):
         step = self.sess.run(self.global_step)
         tf.logging.info('Saving checkpoint for iteration #{}'.format(step))
-        self.saver.save(self.sess, checkpoint_path, write_meta_graph=False,
+        self.saver.save(self.sess, checkpoint_path, write_meta_graph=False, #TODO:应该为True
                         global_step=step)
 
     def close(self):

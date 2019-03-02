@@ -30,6 +30,22 @@ def train(config, n_iter, output_dir, checkpoint_name='model.ckpt'):
         net.save(os.path.join(output_dir, checkpoint_name))
 
 
+# 这里分别是net.train 和 net.load 应该有能载入模型继续训练的方法
+def load_and_train(config, n_iter, output_dir, checkpoint_name='model.ckpt'):
+    checkpoint_path = os.path.join(output_dir, checkpoint_name)
+    with _init_graph(config) as net:
+        try:
+            net.load(output_dir)
+            net.train(n_iter, output_dir=output_dir,
+                      validation_interval=config.get('validation_interval', 100),
+                      save_interval=config.get('save_interval', None),
+                      checkpoint_path=checkpoint_path,
+                      keep_checkpoints=config.get('keep_checkpoints', 1))
+        except KeyboardInterrupt:
+            logging.info('Got Keyboard Interrupt, saving model and closing')
+        net.save(os.path.join(output_dir, checkpoint_name))
+
+
 def evaluate(config, output_dir, n_iter=None):
     with _init_graph(config) as net:
         net.load(output_dir)
@@ -89,6 +105,17 @@ def _cli_train(config, output_dir, args):
         _cli_eval(config, output_dir, args)
 
 
+def _cli_load_and_train(config, output_dir, args):
+    assert 'train_iter' in config
+
+    with open(os.path.join(output_dir, 'config.yml'), 'r') as f:
+        config = yaml.load(f)
+    load_and_train(config, config['train_iter'], output_dir)
+
+    if(args.eval):
+        _cli_eval(config, output_dir, args)
+
+
 def _cli_eval(config, output_dir, args):
     # Load model config from previous experiment
     with open(os.path.join(output_dir, 'config.yml'), 'r') as f:
@@ -123,6 +150,13 @@ if __name__ == '__main__':
     p_train.add_argument('exper_name', type=str)
     p_train.add_argument('--eval', action='store_true')
     p_train.set_defaults(func=_cli_train)
+
+    # Training command -- load and continue to train
+    p_train = subparsers.add_parser('continue_train')
+    p_train.add_argument('config', type=str)
+    p_train.add_argument('exper_name', type=str)
+    p_train.add_argument('--eval', action='store_true')
+    p_train.set_defaults(func=_cli_load_and_train)
 
     # Evaluation command
     p_train = subparsers.add_parser('evaluate')
